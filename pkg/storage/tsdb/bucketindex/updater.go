@@ -303,6 +303,12 @@ func (w *Updater) updateParquetBlocks(ctx context.Context, blocks []*Block) erro
 	// Check if parquet mark has been uploaded or deleted for the block.
 	for _, m := range blocks {
 		if _, ok := discoveredParquetBlocks[m.ID]; ok {
+			// A marker at a valid version is never rewritten (the converter won't
+			// re-convert the block), so skip re-reading it to save an object storage
+			// GET. A version that later becomes invalid is re-read to pick up changes.
+			if m.Parquet != nil && parquet.ValidConverterMarkVersion(m.Parquet.Version) {
+				continue
+			}
 			if err := w.updateParquetBlockIndexEntry(ctx, m.ID, m); err != nil {
 				return err
 			}
